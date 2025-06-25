@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 
@@ -6,12 +7,7 @@ import click
 from a2a.server.apps import A2AStarletteApplication
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
-from a2a.types import (
-    AgentCapabilities,
-    AgentCard,
-    AgentSkill,
-)
-from agent import ReimbursementAgent
+from a2a.types import AgentCard
 from agent_executor import ReimbursementAgentExecutor
 from dotenv import load_dotenv
 
@@ -28,6 +24,11 @@ class MissingAPIKeyError(Exception):
     pass
 
 
+def load_agent_card(json_path):
+    with open(json_path, "r") as f:
+        card = json.load(f)
+    return AgentCard(**card)
+
 @click.command()
 @click.option('--host', default='localhost')
 @click.option('--port', default=10002)
@@ -40,26 +41,8 @@ def main(host, port):
                     'GOOGLE_API_KEY environment variable not set and GOOGLE_GENAI_USE_VERTEXAI is not TRUE.'
                 )
 
-        capabilities = AgentCapabilities(streaming=True)
-        skill = AgentSkill(
-            id='process_reimbursement',
-            name='Process Reimbursement Tool',
-            description='Helps with the reimbursement process for users given the amount and purpose of the reimbursement.',
-            tags=['reimbursement'],
-            examples=[
-                'Can you reimburse me $20 for my lunch with the clients?'
-            ],
-        )
-        agent_card = AgentCard(
-            name='Reimbursement Agent',
-            description='This agent handles the reimbursement process for the employees given the amount and purpose of the reimbursement.',
-            url=f'http://{host}:{port}/',
-            version='1.0.0',
-            defaultInputModes=ReimbursementAgent.SUPPORTED_CONTENT_TYPES,
-            defaultOutputModes=ReimbursementAgent.SUPPORTED_CONTENT_TYPES,
-            capabilities=capabilities,
-            skills=[skill],
-        )
+
+        agent_card = load_agent_card("agent_card.json")
         request_handler = DefaultRequestHandler(
             agent_executor=ReimbursementAgentExecutor(),
             task_store=InMemoryTaskStore(),
